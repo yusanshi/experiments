@@ -20,6 +20,19 @@ except (AttributeError, ModuleNotFoundError):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
+def latest_checkpoint(directory):
+    if not os.path.exists(directory):
+        return None
+    all_checkpoints = {
+        int(x.split('.')[-2].split('-')[-1]): x
+        for x in os.listdir(directory)
+    }
+    if not all_checkpoints:
+        return None
+    return os.path.join(directory,
+                        all_checkpoints[max(all_checkpoints.keys())])
+
+
 def dcg_score(y_true, y_score, k=10):
     order = np.argsort(y_score)[::-1]
     y_true = np.take(y_true, order[:k])
@@ -269,7 +282,6 @@ if __name__ == '__main__':
     # Don't need to load pretrained word/entity/context embedding
     # since it will be loaded from checkpoint later
     model = Model(Config).to(device)
-    from train import latest_checkpoint  # Avoid circular imports
     checkpoint_path = latest_checkpoint(
         os.path.join('./checkpoint', model_name))
     if checkpoint_path is None:
@@ -279,8 +291,7 @@ if __name__ == '__main__':
     checkpoint = torch.load(checkpoint_path)
     model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()
-    auc, mrr, ndcg5, ndcg10 = evaluate(model, './data/test', True,
-                                       './data/test/answer.json')
+    auc, mrr, ndcg5, ndcg10 = evaluate(model, './data/test')
     print(
         f'AUC: {auc:.4f}\nMRR: {mrr:.4f}\nnDCG@5: {ndcg5:.4f}\nnDCG@10: {ndcg10:.4f}'
     )

@@ -12,7 +12,6 @@ class TANR(torch.nn.Module):
     TANR network.
     Input 1 + K candidate news and a list of user clicked news, produce the click probability.
     """
-
     def __init__(self, config, pretrained_word_embedding=None, writer=None):
         super(TANR, self).__init__()
         self.config = config
@@ -22,7 +21,7 @@ class TANR(torch.nn.Module):
         self.topic_predictor = nn.Linear(config.num_filters,
                                          config.num_categories)
 
-    def forward(self, candidate_news, clicked_news):
+    def forward(self, candidate_news, clicked_news, classification_only=False):
         """
         Args:
             candidate_news:
@@ -49,11 +48,17 @@ class TANR(torch.nn.Module):
         # batch_size, num_clicked_news_a_user, num_filters
         clicked_news_vector = torch.stack(
             [self.news_encoder(x) for x in clicked_news], dim=1)
-        # batch_size, num_filters
-        user_vector = self.user_encoder(clicked_news_vector)
-        # batch_size, 1 + K
-        click_probability = torch.stack([self.click_predictor(x,
-                                                              user_vector) for x in candidate_news_vector], dim=1)
+        if classification_only:
+            click_probability = None
+        else:
+            # batch_size, num_filters
+            user_vector = self.user_encoder(clicked_news_vector)
+            # batch_size, 1 + K
+            click_probability = torch.stack([
+                self.click_predictor(x, user_vector)
+                for x in candidate_news_vector
+            ],
+                                            dim=1)
 
         # batch_size * (1 + K + num_clicked_news_a_user), num_categories
         y_pred = self.topic_predictor(

@@ -12,6 +12,15 @@ rm MINDsmall_*.zip
 
 cd ..
 python3 src/data_preprocess.py
+```
+
+```bash
+rm -rf checkpoint/
 python3 src/train.py
 python3 src/evaluate.py
+
+# or
+
+chmod +x run.sh
+./run.sh
 ```

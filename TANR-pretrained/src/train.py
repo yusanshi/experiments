@@ -50,27 +50,11 @@ class EarlyStopping:
         return early_stop, get_better
 
 
-def latest_checkpoint(directory):
-    if not os.path.exists(directory):
-        return None
-    all_checkpoints = {
-        int(x.split('.')[-2].split('-')[-1]): x
-        for x in os.listdir(directory)
-    }
-    if not all_checkpoints:
-        return None
-    return os.path.join(directory,
-                        all_checkpoints[max(all_checkpoints.keys())])
-
-
 def train():
     writer = SummaryWriter(
         log_dir=
-        f"./runs/{model_name}/{datetime.datetime.now().replace(microsecond=0).isoformat()}-{Config.mode}"
+        f"./runs/{model_name}/{datetime.datetime.now().replace(microsecond=0).isoformat()}-{Config.classification_initiate}-{Config.joint_loss}"
     )
-
-    if not os.path.exists('checkpoint'):
-        os.makedirs('checkpoint')
 
     try:
         pretrained_word_embedding = torch.from_numpy(
@@ -95,23 +79,54 @@ def train():
                    num_workers=Config.num_workers,
                    drop_last=True))
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=Config.learning_rate)
-    start_time = time.time()
+    checkpoint_dir = os.path.join('./checkpoint', model_name)
+    Path(checkpoint_dir).mkdir(parents=True, exist_ok=True)
+
+    if Config.classification_initiate:
+        step_classification = 0
+        optimizer = torch.optim.Adam(model.parameters(),
+                                     lr=Config.learning_rate)
+        start_time = time.time()
+        with tqdm(total=Config.num_batches_classification,
+                  desc="Training (classification)") as pbar:
+            for i in range(1, Config.num_batches_classification + 1):
+                try:
+                    minibatch = next(dataloader)
+                except StopIteration:
+                    dataloader = iter(
+                        DataLoader(dataset,
+                                   batch_size=Config.batch_size,
+                                   shuffle=True,
+                                   num_workers=Config.num_workers,
+                                   drop_last=True))
+                    minibatch = next(dataloader)
+
+                step_classification += 1
+
+                _, topic_classification_loss = model(
+                    minibatch["candidate_news"],
+                    minibatch["clicked_news"],
+                    classification_only=True)
+
+                writer.add_scalar('Train(classification)/Loss',
+                                  topic_classification_loss.item(),
+                                  step_classification)
+                optimizer.zero_grad()
+                topic_classification_loss.backward()
+                optimizer.step()
+
+                if i % Config.num_batches_show_loss == 0:
+                    tqdm.write(
+                        f"Time {time_since(start_time)}, batches {i}, current loss {topic_classification_loss.item():.4f}"
+                    )
+
+                pbar.update(1)
+
     loss_full = []
     exhaustion_count = 0
     step = 0
-
-    checkpoint_dir = os.path.join('./checkpoint', model_name)
-    Path(checkpoint_dir).mkdir(parents=True, exist_ok=True)
-    if Config.load_checkpoint:
-        checkpoint_path = latest_checkpoint(checkpoint_dir)
-        if checkpoint_path is not None:
-            print(f"Load saved parameters in {checkpoint_path}")
-            checkpoint = torch.load(checkpoint_path)
-            model.load_state_dict(checkpoint['model_state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-            step = checkpoint['step']
-            model.train()
+    optimizer = torch.optim.Adam(model.parameters(), lr=Config.learning_rate)
+    start_time = time.time()
 
     early_stopping = EarlyStopping()
 
@@ -138,14 +153,14 @@ def train():
                 minibatch["candidate_news"], minibatch["clicked_news"])
             loss = torch.stack([x[0] for x in -F.log_softmax(y_pred, dim=1)
                                 ]).mean()
-
-            writer.add_scalar('Train/BaseLoss', loss.item(), step)
-            writer.add_scalar('Train/TopicClassificationLoss',
-                              topic_classification_loss.item(), step)
-            writer.add_scalar('Train/TopicBaseRatio',
-                              topic_classification_loss.item() / loss.item(),
-                              step)
-            loss += Config.topic_classification_loss_weight * topic_classification_loss
+            if Config.joint_loss:
+                writer.add_scalar('Train/BaseLoss', loss.item(), step)
+                writer.add_scalar('Train/TopicClassificationLoss',
+                                  topic_classification_loss.item(), step)
+                writer.add_scalar(
+                    'Train/TopicBaseRatio',
+                    topic_classification_loss.item() / loss.item(), step)
+                loss += Config.topic_classification_loss_weight * topic_classification_loss
             loss_full.append(loss.item())
             optimizer.zero_grad()
             loss.backward()
@@ -174,12 +189,8 @@ def train():
                     tqdm.write('Early stop.')
                     break
                 elif get_better:
-                    torch.save(
-                        {
-                            'model_state_dict': model.state_dict(),
-                            'optimizer_state_dict': optimizer.state_dict(),
-                            'step': step
-                        }, f"./checkpoint/{model_name}/ckpt-{step}.pth")
+                    torch.save({'model_state_dict': model.state_dict()},
+                               f"./checkpoint/{model_name}/ckpt-{step}.pth")
 
             pbar.update(1)
 
