@@ -43,8 +43,8 @@ class TANRConfig(BaseConfig):
     window_size = 3
     topic_classification_loss_weight = 0.1
 
-    num_batches_classification = 1000
-    classification_initiate = os.environ[
-        'CLASSIFICATION_INITIATE'] == '1' if 'CLASSIFICATION_INITIATE' in os.environ else True
+    num_batches_classification = int(
+        os.environ['NUM_BATCHES_CLASSIFICATION']
+    ) if 'NUM_BATCHES_CLASSIFICATION' in os.environ else 0
     joint_loss = os.environ[
         'JOINT_LOSS'] == '1' if 'JOINT_LOSS' in os.environ else True

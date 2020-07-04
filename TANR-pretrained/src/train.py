@@ -53,7 +53,7 @@ class EarlyStopping:
 def train():
     writer = SummaryWriter(
         log_dir=
-        f"./runs/{model_name}/{datetime.datetime.now().replace(microsecond=0).isoformat()}-{Config.classification_initiate}-{Config.joint_loss}"
+        f"./runs/{model_name}/{datetime.datetime.now().replace(microsecond=0).isoformat()}-{Config.num_batches_classification:04}-{Config.joint_loss}"
     )
 
     try:
@@ -82,7 +82,7 @@ def train():
     checkpoint_dir = os.path.join('./checkpoint', model_name)
     Path(checkpoint_dir).mkdir(parents=True, exist_ok=True)
 
-    if Config.classification_initiate:
+    if Config.num_batches_classification != 0:
         step_classification = 0
         optimizer = torch.optim.Adam(model.parameters(),
                                      lr=Config.learning_rate)
