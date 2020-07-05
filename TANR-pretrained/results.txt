@@ -1,3 +1,161 @@
-2020年 07月 04日 星期六 01:03:02 CST
+round_1-0-0
+Using device: cuda:0
+Evaluating model TANR
+Load saved parameters in ./checkpoint/TANR/ckpt-3000.pth
+AUC: 0.6491
+MRR: 0.3063
+nDCG@5: 0.3347
+nDCG@10: 0.3971
+
+round_1-0-1
+Using device: cuda:0
+Evaluating model TANR
+Load saved parameters in ./checkpoint/TANR/ckpt-3000.pth
+AUC: 0.6508
+MRR: 0.3058
+nDCG@5: 0.3333
+nDCG@10: 0.3969
+
+round_1-500-0
+Using device: cuda:0
+Evaluating model TANR
+Load saved parameters in ./checkpoint/TANR/ckpt-4000.pth
+AUC: 0.6517
+MRR: 0.3099
+nDCG@5: 0.3389
+nDCG@10: 0.4015
+
+round_1-500-1
+Using device: cuda:0
+Evaluating model TANR
+Load saved parameters in ./checkpoint/TANR/ckpt-6800.pth
+AUC: 0.6431
+MRR: 0.3074
+nDCG@5: 0.3344
+nDCG@10: 0.3980
+
+round_1-1000-0
+Using device: cuda:0
+Evaluating model TANR
+Load saved parameters in ./checkpoint/TANR/ckpt-5400.pth
+AUC: 0.6475
+MRR: 0.3072
+nDCG@5: 0.3335
+nDCG@10: 0.3968
+
+round_1-1000-1
+Using device: cuda:0
+Evaluating model TANR
+Load saved parameters in ./checkpoint/TANR/ckpt-6800.pth
+AUC: 0.6496
+MRR: 0.3075
+nDCG@5: 0.3346
+nDCG@10: 0.3984
 
 round_1-0-0
+Using device: cuda:0
+Evaluating model TANR
+Load saved parameters in ./checkpoint/TANR/ckpt-6200.pth
+AUC: 0.6560
+MRR: 0.3117
+nDCG@5: 0.3423
+nDCG@10: 0.4032
+
+round_1-0-1
+Using device: cuda:0
+Evaluating model TANR
+Load saved parameters in ./checkpoint/TANR/ckpt-4200.pth
+AUC: 0.6507
+MRR: 0.3050
+nDCG@5: 0.3339
+nDCG@10: 0.3973
+
+round_1-500-0
+Using device: cuda:0
+Evaluating model TANR
+Load saved parameters in ./checkpoint/TANR/ckpt-5200.pth
+AUC: 0.6480
+MRR: 0.3051
+nDCG@5: 0.3321
+nDCG@10: 0.3955
+
+round_1-500-1
+Using device: cuda:0
+Evaluating model TANR
+Load saved parameters in ./checkpoint/TANR/ckpt-7800.pth
+AUC: 0.6524
+MRR: 0.3100
+nDCG@5: 0.3402
+nDCG@10: 0.4018
+
+round_1-1000-0
+Using device: cuda:0
+Evaluating model TANR
+Load saved parameters in ./checkpoint/TANR/ckpt-4000.pth
+AUC: 0.6414
+MRR: 0.2995
+nDCG@5: 0.3263
+nDCG@10: 0.3894
+
+round_1-1000-1
+Using device: cuda:0
+Evaluating model TANR
+Load saved parameters in ./checkpoint/TANR/ckpt-4800.pth
+AUC: 0.6565
+MRR: 0.3134
+nDCG@5: 0.3440
+nDCG@10: 0.4059
+
+round_1-0-0
+Using device: cuda:0
+Evaluating model TANR
+Load saved parameters in ./checkpoint/TANR/ckpt-5400.pth
+AUC: 0.6472
+MRR: 0.3065
+nDCG@5: 0.3340
+nDCG@10: 0.3963
+
+round_1-0-1
+Using device: cuda:0
+Evaluating model TANR
+Load saved parameters in ./checkpoint/TANR/ckpt-2200.pth
+AUC: 0.6457
+MRR: 0.3041
+nDCG@5: 0.3300
+nDCG@10: 0.3945
+
+round_1-500-0
+Using device: cuda:0
+Evaluating model TANR
+Load saved parameters in ./checkpoint/TANR/ckpt-3600.pth
+AUC: 0.6440
+MRR: 0.3019
+nDCG@5: 0.3297
+nDCG@10: 0.3930
+
+round_1-500-1
+Using device: cuda:0
+Evaluating model TANR
+Load saved parameters in ./checkpoint/TANR/ckpt-5400.pth
+AUC: 0.6532
+MRR: 0.3098
+nDCG@5: 0.3377
+nDCG@10: 0.4009
+
+round_1-1000-0
+Using device: cuda:0
+Evaluating model TANR
+Load saved parameters in ./checkpoint/TANR/ckpt-3600.pth
+AUC: 0.6544
+MRR: 0.3102
+nDCG@5: 0.3400
+nDCG@10: 0.4019
+
+round_1-1000-1
+Using device: cuda:0
+Evaluating model TANR
+Load saved parameters in ./checkpoint/TANR/ckpt-6400.pth
+AUC: 0.6550
+MRR: 0.3133
+nDCG@5: 0.3438
+nDCG@10: 0.4058
