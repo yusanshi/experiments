@@ -24,19 +24,24 @@ class AdditiveAttention(torch.nn.Module):
         self.names = names
         self.local_step = 1
 
-    def forward(self, candidate_vector):
+    def forward(self, candidate_vector, length=None):
         """
         Args:
             candidate_vector: batch_size, candidate_size, candidate_vector_dim
+            length: batch_size
         Returns:
             (shape) batch_size, candidate_vector_dim
         """
         # batch_size, candidate_size, query_vector_dim
         temp = torch.tanh(self.linear(candidate_vector))
         # batch_size, candidate_size
-        candidate_weights = F.softmax(torch.matmul(
-            temp, self.attention_query_vector),
-                                      dim=1)
+        candidate_weights = torch.matmul(temp, self.attention_query_vector)
+        if length is not None:
+            batch_size, maxlen = candidate_weights.size()
+            mask = torch.arange(maxlen).expand(batch_size,
+                                               maxlen) < length.view(-1, 1)
+            candidate_weights[~mask] = float('-inf')
+        candidate_weights = F.softmax(candidate_weights, dim=1)
         if self.writer is not None:
             assert candidate_weights.size(1) == len(self.names)
             if self.local_step % 10 == 0:

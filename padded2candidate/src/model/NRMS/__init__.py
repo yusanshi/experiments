@@ -16,19 +16,22 @@ class NRMS(torch.nn.Module):
         self.user_encoder = UserEncoder(config)
         self.click_predictor = DotProductClickPredictor()
 
-    def forward(self, candidate_news, clicked_news):
+    def forward(self, clicked_news_length, candidate_news, clicked_news):
         """
         Args:
+            clicked_news_length: Tensor(batch_size),
             candidate_news:
                 [
                     {
-                        "title": Tensor(batch_size) * num_words_title
+                        "title": Tensor(batch_size) * num_words_title,
+                        "title_length": Tensor(batch_size)
                     } * (1 + K)
                 ]
             clicked_news:
                 [
                     {
-                        "title":Tensor(batch_size) * num_words_title
+                        "title":Tensor(batch_size) * num_words_title,
+                        "title_length": Tensor(batch_size)
                     } * num_clicked_news_a_user
                 ]
         Returns:
@@ -41,7 +44,8 @@ class NRMS(torch.nn.Module):
         clicked_news_vector = torch.stack(
             [self.news_encoder(x) for x in clicked_news], dim=1)
         # batch_size, word_embedding_dim
-        user_vector = self.user_encoder(clicked_news_vector)
+        user_vector = self.user_encoder(clicked_news_vector,
+                                        clicked_news_length)
         # batch_size, 1 + K
         click_probability = torch.stack([
             self.click_predictor(x, user_vector) for x in candidate_news_vector
@@ -54,7 +58,8 @@ class NRMS(torch.nn.Module):
         Args:
             news:
                 {
-                    "title": Tensor(batch_size) * num_words_title
+                    "title": Tensor(batch_size) * num_words_title,
+                    "title_length": Tensor(batch_size) 
                 },
         Returns:
             (shape) batch_size, word_embedding_dim
@@ -62,15 +67,16 @@ class NRMS(torch.nn.Module):
         # batch_size, word_embedding_dim
         return self.news_encoder(news)
 
-    def get_user_vector(self, clicked_news_vector):
+    def get_user_vector(self, clicked_news_vector, clicked_news_length):
         """
         Args:
-            clicked_news_vector: batch_size, num_clicked_news_a_user, word_embedding_dim
+            clicked_news_vector: batch_size, num_clicked_news_a_user, word_embedding_dim,
+            clicked_news_length: batch_size
         Returns:
             (shape) batch_size, word_embedding_dim
         """
         # batch_size, word_embedding_dim
-        return self.user_encoder(clicked_news_vector)
+        return self.user_encoder(clicked_news_vector, clicked_news_length)
 
     def get_prediction(self, news_vector, user_vector):
         """

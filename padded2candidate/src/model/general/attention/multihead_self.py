@@ -8,7 +8,6 @@ class MultiHeadSelfAttention(torch.nn.Module):
     A general multi-head self attention module.
     Originally for NRMS.
     """
-
     def __init__(self, candidate_vector_dim, num_attention_heads):
         super(MultiHeadSelfAttention, self).__init__()
         assert candidate_vector_dim % num_attention_heads == 0
@@ -29,19 +28,29 @@ class MultiHeadSelfAttention(torch.nn.Module):
                 ).uniform_(-0.1, 0.1)) for _ in range(num_attention_heads)
         ])
 
-    def forward(self, candidate_vector):
+    def forward(self, candidate_vector, length=None):
         """
         Args:
-            candidate_vector: batch_size, candidate_size, candidate_vector_dim
+            candidate_vector: batch_size, candidate_size, candidate_vector_dim,
+            length: batch_size
         Returns:
             (shape) batch_size, candidate_size, candidate_vector_dim
         """
         container = []
+
+        if length is not None:
+            batch_size, maxlen, _ = candidate_vector.size()
+            mask = torch.arange(maxlen).expand(batch_size, maxlen,
+                                               maxlen) < length.view(-1, 1, 1)
         for i in range(self.num_attention_heads):
             # batch_size, candidate_size, candidate_vector_dim
             temp = torch.matmul(candidate_vector, self.Qs[i])
             # batch_size, candidate_size, candidate_size
             temp2 = torch.bmm(temp, candidate_vector.transpose(1, 2))
+
+            if length is not None:
+                temp2[~mask] = float('-inf')
+
             # batch_size, candidate_size, candidate_size
             weights = F.softmax(temp2, dim=2)
             # batch_size, candidate_size, candidate_vector_dim

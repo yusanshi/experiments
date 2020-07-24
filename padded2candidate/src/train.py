@@ -163,6 +163,10 @@ def train():
             elif model_name == 'TANR':
                 y_pred, topic_classification_loss = model(
                     minibatch["candidate_news"], minibatch["clicked_news"])
+            elif model_name == 'NRMS':
+                y_pred = model(minibatch["clicked_news_length"],
+                               minibatch["candidate_news"],
+                               minibatch["clicked_news"])
             else:
                 y_pred = model(minibatch["candidate_news"],
                                minibatch["clicked_news"])

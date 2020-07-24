@@ -69,6 +69,7 @@ class NewsDataset(Dataset):
             "category": row.category,
             "subcategory": row.subcategory,
             "title": row.title,
+            "title_length": row.title_length,
             "abstract": row.abstract,
             "title_entities": row.title_entities,
             "abstract_entities": row.abstract_entities
@@ -172,7 +173,7 @@ def evaluate(model, directory, generate_txt=False, txt_path=None):
     """
     news_dataset = NewsDataset(os.path.join(directory, 'news_parsed.tsv'))
     news_dataloader = DataLoader(news_dataset,
-                                 batch_size=1,
+                                 batch_size=Config.batch_size,
                                  shuffle=False,
                                  num_workers=Config.num_workers,
                                  drop_last=False)
@@ -201,28 +202,32 @@ def evaluate(model, directory, generate_txt=False, txt_path=None):
 
     user2vector = {}
     user2length = {}
-    
+
     with tqdm(total=len(user_dataloader),
-                desc="Calculating vectors for users") as pbar:
+              desc="Calculating vectors for users") as pbar:
         for minibatch in user_dataloader:
             user_strings = minibatch["clicked_news_string"]
             if any(user_string not in user2vector
-                for user_string in user_strings):
+                   for user_string in user_strings):
                 clicked_news_vector = torch.stack([
                     torch.stack([news2vector[x].to(device) for x in news_list],
                                 dim=0)
                     for news_list in minibatch["clicked_news"]
                 ],
-                                                dim=0).transpose(0, 1)
+                                                  dim=0).transpose(0, 1)
                 if model_name == 'LSTUR':
                     user_vector = model.get_user_vector(
                         minibatch['user'], minibatch['clicked_news_length'],
                         clicked_news_vector)
+                elif model_name == 'NRMS':
+                    user_vector = model.get_user_vector(
+                        clicked_news_vector, minibatch['clicked_news_length'])
                 else:
-                    # print(clicked_news_vector.shape)
                     user_vector = model.get_user_vector(clicked_news_vector)
-                    # print(user_vector.shape)
-                for user, vector, length in zip(user_strings, user_vector,minibatch['clicked_news_length']):
+
+                for user, vector, length in zip(
+                        user_strings, user_vector,
+                        minibatch['clicked_news_length']):
                     if user not in user2vector:
                         user2vector[user] = vector
                         user2length[user] = length
@@ -245,17 +250,20 @@ def evaluate(model, directory, generate_txt=False, txt_path=None):
 
     try:
         with tqdm(total=len(behaviors_dataloader),
-                desc="Calculating probabilities") as pbar:
+                  desc="Calculating probabilities") as pbar:
             for minibatch in behaviors_dataloader:
                 y_pred_list = [
                     model.get_prediction(
-                        news2vector[news[0].split('-')[0]].cuda(),
-                        user2vector[minibatch['clicked_news_string'][0]]).item()
-                    for news in [['PADDED_NEWS-0']] + minibatch['impressions']
+                        news2vector[news[0].split('-')[0]].cuda(), user2vector[
+                            minibatch['clicked_news_string'][0]]).item()
+                    for news in
+                    ([['PADDED_NEWS-0']] if Config.add_padded else []) +
+                    minibatch['impressions']
                 ]
 
-                y_list = [0] + [
-                    int(news[0].split('-')[1]) for news in minibatch['impressions']
+                y_list = ([0] if Config.add_padded else []) + [
+                    int(news[0].split('-')[1])
+                    for news in minibatch['impressions']
                 ]
 
                 auc = roc_auc_score(y_list, y_pred_list)
@@ -275,6 +283,7 @@ def evaluate(model, directory, generate_txt=False, txt_path=None):
                 pbar.update(1)
     except KeyboardInterrupt:
         pass
+
     if generate_txt:
         answer_file.close()
 

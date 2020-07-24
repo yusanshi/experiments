@@ -16,8 +16,8 @@ class BaseDataset(Dataset):
         super(BaseDataset, self).__init__()
         self.attributes = attributes
         assert all(attribute in [
-            'category', 'subcategory', 'title', 'abstract', 'title_entities',
-            'abstract_entities'
+            'category', 'subcategory', 'title', 'title_length', 'abstract',
+            'title_entities', 'abstract_entities'
         ] for attribute in attributes['news'])
         assert all(attribute in ['user', 'clicked_news_length']
                    for attribute in attributes['record'])
@@ -39,6 +39,8 @@ class BaseDataset(Dataset):
             self.padding['subcategory'] = 0
         if 'title' in attributes['news']:
             self.padding['title'] = [0] * Config.num_words_title
+        if 'title_length' in attributes['news']:
+            self.padding['title_length'] = 0
         if 'abstract' in attributes['news']:
             self.padding['abstract'] = [0] * Config.num_words_abstract
         if 'title_entities' in attributes['news']:
@@ -60,8 +62,9 @@ class BaseDataset(Dataset):
         if 'user' in self.attributes['record']:
             item['user'] = row.user
         item["clicked"] = list(map(int, row.clicked.split()))
-        item["candidate_news"] = [news2dict(x, self.news_parsed)
-                                  for x in row.candidate_news.split()]
+        item["candidate_news"] = [
+            news2dict(x, self.news_parsed) for x in row.candidate_news.split()
+        ]
         item["clicked_news"] = [
             news2dict(x, self.news_parsed)
             for x in row.clicked_news.split()[:Config.num_clicked_news_a_user]

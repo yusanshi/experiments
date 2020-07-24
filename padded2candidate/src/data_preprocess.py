@@ -1,6 +1,5 @@
 from config import model_name
 import pandas as pd
-import json
 from tqdm import tqdm
 from os import path
 import random
@@ -127,55 +126,39 @@ def parse_news(source, target, category2int_path, word2int_path,
         new_row = [
             row.id,
             category2int[row.category] if row.category in category2int else 0,
-            category2int[row.subcategory]
-            if row.subcategory in category2int else 0,
-            [0] * Config.num_words_title, [0] * Config.num_words_abstract,
-            [0] * Config.num_words_title, [0] * Config.num_words_abstract
+            category2int[row.subcategory] if row.subcategory in category2int
+            else 0, [0] * Config.num_words_title, 0,
+            [0] * Config.num_words_abstract, 0, [0] * Config.num_words_title,
+            [0] * Config.num_words_abstract
         ]
-
-        # Calculate local entity map (map lower single word to entity)
-        local_entity_map = {}
-        for e in json.loads(row.title_entities):
-            if e['Confidence'] > Config.entity_confidence_threshold and e[
-                    'WikidataId'] in entity2int:
-                for x in ' '.join(e['SurfaceForms']).lower().split():
-                    local_entity_map[x] = entity2int[e['WikidataId']]
-        for e in json.loads(row.abstract_entities):
-            if e['Confidence'] > Config.entity_confidence_threshold and e[
-                    'WikidataId'] in entity2int:
-                for x in ' '.join(e['SurfaceForms']).lower().split():
-                    local_entity_map[x] = entity2int[e['WikidataId']]
 
         try:
             for i, w in enumerate(word_tokenize(row.title.lower())):
                 if w in word2int:
                     new_row[3][i] = word2int[w]
-                    if w in local_entity_map:
-                        new_row[5][i] = local_entity_map[w]
         except IndexError:
             pass
+        new_row[4] = len(word_tokenize(row.title.lower()))
 
         try:
             for i, w in enumerate(word_tokenize(row.abstract.lower())):
                 if w in word2int:
-                    new_row[4][i] = word2int[w]
-                    if w in local_entity_map:
-                        new_row[6][i] = local_entity_map[w]
+                    new_row[5][i] = word2int[w]
         except IndexError:
             pass
+        new_row[6] = len(word_tokenize(row.abstract.lower()))
 
         return pd.Series(new_row,
                          index=[
                              'id', 'category', 'subcategory', 'title',
-                             'abstract', 'title_entities', 'abstract_entities'
+                             'title_length', 'abstract', 'abstract_length',
+                             'title_entities', 'abstract_entities'
                          ])
 
     if mode == 'train':
         category2int = {}
         word2int = {}
         word2freq = {}
-        entity2int = {}
-        entity2freq = {}
 
         for row in news.itertuples(index=False):
             if row.category not in category2int:
@@ -194,29 +177,9 @@ def parse_news(source, target, category2int_path, word2int_path,
                 else:
                     word2freq[w] += 1
 
-            for e in json.loads(row.title_entities):
-                times = len(e['OccurrenceOffsets']) * e['Confidence']
-                if times > 0:
-                    if e['WikidataId'] not in entity2freq:
-                        entity2freq[e['WikidataId']] = times
-                    else:
-                        entity2freq[e['WikidataId']] += times
-
-            for e in json.loads(row.abstract_entities):
-                times = len(e['OccurrenceOffsets']) * e['Confidence']
-                if times > 0:
-                    if e['WikidataId'] not in entity2freq:
-                        entity2freq[e['WikidataId']] = times
-                    else:
-                        entity2freq[e['WikidataId']] += times
-
         for k, v in word2freq.items():
             if v >= Config.word_freq_threshold:
                 word2int[k] = len(word2int) + 1
-
-        for k, v in entity2freq.items():
-            if v >= Config.entity_freq_threshold:
-                entity2int[k] = len(entity2int) + 1
 
         parsed_news = news.apply(parse_row, axis=1)
 
@@ -238,20 +201,11 @@ def parse_news(source, target, category2int_path, word2int_path,
             f'Please modify `num_words` in `src/config.py` into 1 + {len(word2int)}'
         )
 
-        pd.DataFrame(entity2int.items(),
-                     columns=['entity', 'int']).to_csv(entity2int_path,
-                                                       sep='\t',
-                                                       index=False)
-        print(
-            f'Please modify `num_entities` in `src/config.py` into 1 + {len(entity2int)}'
-        )
-
     elif mode == 'test':
         category2int = dict(pd.read_table(category2int_path).values.tolist())
         # na_filter=False is needed since nan is also a valid word
         word2int = dict(
             pd.read_table(word2int_path, na_filter=False).values.tolist())
-        entity2int = dict(pd.read_table(entity2int_path).values.tolist())
 
         parsed_news = news.apply(parse_row, axis=1)
 
@@ -299,124 +253,44 @@ def generate_word_embedding(source, target, word2int_path):
     np.save(target, target_embedding)
 
 
-def transform_entity_embedding(source, target, entity2int_path):
-    """
-    Args:
-        source: path of embedding file
-        target: path of transformed embedding file in numpy format
-        entity2int_path
-    """
-    entity_embedding = pd.read_table(source, header=None)
-    entity_embedding['vector'] = entity_embedding.iloc[:,
-                                                       1:101].values.tolist()
-    entity_embedding = entity_embedding[[0, 'vector'
-                                         ]].rename(columns={0: "entity"})
-
-    entity2int = pd.read_table(entity2int_path)
-    merged_df = pd.merge(entity_embedding, entity2int,
-                         on='entity').sort_values('int')
-    entity_embedding_transformed = np.zeros(
-        (len(entity2int) + 1, Config.entity_embedding_dim))
-    for row in merged_df.itertuples(index=False):
-        entity_embedding_transformed[row.int] = row.vector
-    np.save(target, entity_embedding_transformed)
-
-
-def history2candidate(source, target):
-    behaviors = pd.read_table(
-        source,
-        header=None,
-        names=['impression_id', 'user', 'time', 'clicked_news', 'impressions'])
-    behaviors.dropna(inplace=True)
-
-    def select_history_into_candidate(row):
-        new_row = row
-        clicked_news = new_row.clicked_news.split()[:Config.
-                                                    num_clicked_news_a_user]
-        assert len(clicked_news) > 0
-        new_row.impressions = f'{random.choice(clicked_news)}-1 ' + new_row.impressions
-        return pd.Series(new_row,
-                         index=[
-                             'impression_id', 'user', 'time', 'clicked_news',
-                             'impressions'
-                         ])
-
-    behaviors = behaviors.apply(select_history_into_candidate, axis=1)
-    behaviors.to_csv(target, sep='\t', index=False, header=False)
-
-
-def transform2txt(source, target):
-    """
-    Transform behaviors file in tsv to txt
-    """
-    behaviors = pd.read_table(source,
-                              header=None,
-                              usecols=[0, 4],
-                              names=['impression_id', 'impression'])
-    f = open(target, "w")
-    with tqdm(total=len(behaviors), desc="Transforming tsv to txt") as pbar:
-        for row in behaviors.itertuples(index=False):
-            f.write(
-                f"{row.impression_id} {str([int(x.split('-')[1]) for x in row.impression.split()]).replace(' ','')}\n"
-            )
-
-            pbar.update(1)
-
-    f.close()
-
-
 if __name__ == '__main__':
     train_dir = './data/train'
     val_dir = './data/val'
     test_dir = './data/test'
     Path(val_dir).mkdir(exist_ok=True)
 
-    # print('Process data for training')
+    print('Process data for training')
 
-    # print('Parse behaviors')
-    # parse_behaviors(path.join(train_dir, 'behaviors.tsv'),
-    #                 path.join(train_dir, 'behaviors_parsed.tsv'),
-    #                 path.join(val_dir, 'behaviors.tsv'),
-    #                 path.join(train_dir, 'user2int.tsv'))
+    print('Parse behaviors')
+    parse_behaviors(path.join(train_dir, 'behaviors.tsv'),
+                    path.join(train_dir, 'behaviors_parsed.tsv'),
+                    path.join(val_dir, 'behaviors.tsv'),
+                    path.join(train_dir, 'user2int.tsv'))
 
-    # print('Parse news')
-    # parse_news(path.join(train_dir, 'news.tsv'),
-    #            path.join(train_dir, 'news_parsed.tsv'),
-    #            path.join(train_dir, 'category2int.tsv'),
-    #            path.join(train_dir, 'word2int.tsv'),
-    #            path.join(train_dir, 'entity2int.tsv'),
-    #            mode='train')
+    print('Parse news')
+    parse_news(path.join(train_dir, 'news.tsv'),
+               path.join(train_dir, 'news_parsed.tsv'),
+               path.join(train_dir, 'category2int.tsv'),
+               path.join(train_dir, 'word2int.tsv'),
+               path.join(train_dir, 'entity2int.tsv'),
+               mode='train')
 
-    # # For validation in training
-    # copyfile(path.join(train_dir, 'news_parsed.tsv'),
-    #          path.join(val_dir, 'news_parsed.tsv'))
+    # For validation in training
+    copyfile(path.join(train_dir, 'news_parsed.tsv'),
+             path.join(val_dir, 'news_parsed.tsv'))
 
-    # print('Generate word embedding')
-    # generate_word_embedding(
-    #     f'./data/glove/glove.840B.{Config.word_embedding_dim}d.txt',
-    #     path.join(train_dir, 'pretrained_word_embedding.npy'),
-    #     path.join(train_dir, 'word2int.tsv'))
-
-    # print('Transform entity embeddings')
-    # transform_entity_embedding(
-    #     path.join(train_dir, 'entity_embedding.vec'),
-    #     path.join(train_dir, 'pretrained_entity_embedding.npy'),
-    #     path.join(train_dir, 'entity2int.tsv'))
+    print('Generate word embedding')
+    generate_word_embedding(
+        f'./data/glove/glove.840B.{Config.word_embedding_dim}d.txt',
+        path.join(train_dir, 'pretrained_word_embedding.npy'),
+        path.join(train_dir, 'word2int.tsv'))
 
     print('\nProcess data for test')
 
-    print('Randomly select a history into candidate')
-    history2candidate(path.join(test_dir, 'behaviors_old.tsv'),
-                      path.join(test_dir, 'behaviors.tsv'))
-
-    # print('Transform test data')
-    # transform2txt(path.join(test_dir, 'behaviors.tsv'),
-    #               path.join(test_dir, 'truth.txt'))
-
-    # print('Parse news')
-    # parse_news(path.join(test_dir, 'news.tsv'),
-    #            path.join(test_dir, 'news_parsed.tsv'),
-    #            path.join(train_dir, 'category2int.tsv'),
-    #            path.join(train_dir, 'word2int.tsv'),
-    #            path.join(train_dir, 'entity2int.tsv'),
-    #            mode='test')
+    print('Parse news')
+    parse_news(path.join(test_dir, 'news.tsv'),
+               path.join(test_dir, 'news_parsed.tsv'),
+               path.join(train_dir, 'category2int.tsv'),
+               path.join(train_dir, 'word2int.tsv'),
+               path.join(train_dir, 'entity2int.tsv'),
+               mode='test')
