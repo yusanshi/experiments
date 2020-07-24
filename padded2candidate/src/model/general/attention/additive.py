@@ -37,6 +37,7 @@ class AdditiveAttention(torch.nn.Module):
         # batch_size, candidate_size
         candidate_weights = torch.matmul(temp, self.attention_query_vector)
         if length is not None:
+            length[length == 0] = 1
             batch_size, maxlen = candidate_weights.size()
             mask = torch.arange(maxlen).expand(batch_size,
                                                maxlen) < length.view(-1, 1)

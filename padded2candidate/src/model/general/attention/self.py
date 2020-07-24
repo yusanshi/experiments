@@ -22,6 +22,7 @@ class SelfAttention(torch.nn.Module):
         weights = torch.bmm(candidate_vector, candidate_vector.transpose(1, 2))
 
         if length is not None:
+            length[length == 0] = 1
             batch_size, maxlen, _ = weights.size()
             mask = torch.arange(maxlen).expand(batch_size, maxlen,
                                                maxlen) < length.view(-1, 1, 1)

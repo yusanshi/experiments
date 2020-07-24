@@ -39,6 +39,7 @@ class MultiHeadSelfAttention(torch.nn.Module):
         container = []
 
         if length is not None:
+            length[length == 0] = 1
             batch_size, maxlen, _ = candidate_vector.size()
             mask = torch.arange(maxlen).expand(batch_size, maxlen,
                                                maxlen) < length.view(-1, 1, 1)

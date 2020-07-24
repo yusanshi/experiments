@@ -12,8 +12,8 @@ class BaseConfig():
     num_batches = 60000  # Number of batches to train
     num_batches_show_loss = 100  # Number of batchs to show loss
     # Number of batchs to check metrics on validation dataset
-    num_batches_validate = 8
-    batch_size = 32
+    num_batches_validate = 500
+    batch_size = 128
     learning_rate = 0.001
     validation_proportion = 0.1
     num_workers = 4  # Number of workers for data loading
