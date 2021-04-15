@@ -1,0 +1,20 @@
+
+
+
+
+    Left: four space
+
+		Left: two tab
+
+    	Left: four space and one tab
+Following: three empty, three space and three tab
+
+
+
+    
+    
+    
+	
+	
+	
+End
